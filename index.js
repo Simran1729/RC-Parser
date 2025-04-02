@@ -50,14 +50,16 @@ app.post("/parse-excel", upload.single("file"), async (req, res) => {
         }
         const taskData = await getTasksForProject(projectId, accessToken);
         const updatedJson = assignTaskIdsFromZoho(jsonData, taskData);
-        const updateLogs = await updateMatchedTasksInZohoProjects(updatedJson.project_data, accessToken, projectId);
+        const tasklistData = await getTasklistFromZoho(projectId, accessToken);
+        const finalJson = updateTasklistIds(tasklistData, updatedJson);
+        const updateLogs = await updateMatchedTasksInZohoProjects(finalJson.project_data, accessToken, projectId);
 
         res.status(200).json({
             message: "Tasks processed.",
             taskData,
             updateLogs,
         });
-        // res.status(200).json(jsonData);
+        // res.status(200).json(updatedJson);
 
     } catch (error) {
         console.error("Error reading Excel file:", error);
@@ -217,6 +219,20 @@ async function getTasksForProject(projectId, accessToken) {
     try {
         console.log("this is projectId : " + projectId);
         const response = await axios.get("https://projectsapi.zoho.com/restapi/portal/gauravheliostechlabsdotcom/projects/" + projectId + "/tasks/", {
+            headers: {
+                Authorization: `Zoho-oauthtoken ${accessToken}`
+            },
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching projects:", error);
+    }
+}
+
+async function getTasklistFromZoho(projectId, accessToken) {
+    try {
+        console.log("this is projectId : " + projectId);
+        const response = await axios.get("https://projectsapi.zoho.com/restapi/portal/gauravheliostechlabsdotcom/projects/" + projectId + "/tasklists/", {
             headers: {
                 Authorization: `Zoho-oauthtoken ${accessToken}`
             },
@@ -424,3 +440,22 @@ const handleCreateAndUpdate = async (task, accessToken, projectId) => {
     }
 };
 
+
+function updateTasklistIds(tasklistData, updatedJson){
+    tasklistData.tasklists.forEach(tasklist => {
+        const zohoTasklistName = tasklist.name.trim().toLowerCase();
+        const zohoTasklistid = tasklist.id_string;
+
+        updatedJson.project_data.forEach(taskGroup => {
+            const tasklistName = taskGroup.tasklist.name.trim().toLowerCase();
+            if(zohoTasklistName === tasklistName){
+                taskGroup.tasklist.id = zohoTasklistid;
+                taskGroup.tasks.forEach(task => {
+                    task.tasklist_id = zohoTasklistid;
+                })
+            }
+        })
+    })
+
+    return updatedJson;
+}
