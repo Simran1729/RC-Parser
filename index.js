@@ -50,22 +50,23 @@ app.post("/parse-excel", upload.single("file"), async (req, res) => {
         }
         const taskData = await getTasksForProject(projectId, accessToken);
         const updatedJson = assignTaskIdsFromZoho(jsonData, taskData);
-        const tasklistData = await getTasklistFromZoho(projectId, accessToken);
-        const finalJson = updateTasklistIds(tasklistData, updatedJson);
-        const updateLogs = await updateMatchedTasksInZohoProjects(finalJson.project_data, accessToken, projectId);
+        // const tasklistData = await getTasklistFromZoho(projectId, accessToken);
+        // const finalJson = updateTasklistIds(tasklistData, updatedJson);
+        const updateLogs = await updateMatchedTasksInZohoProjects(updatedJson.project_data, accessToken, projectId);
 
         res.status(200).json({
             message: "Tasks processed.",
             taskData,
             updateLogs,
         });
-        // res.status(200).json(updatedJson);
+        // res.status(200).json(finalJson);
 
     } catch (error) {
         console.error("Error reading Excel file:", error);
         res.status(500).json({ error: "Failed to process Excel file" });
     }
 });
+
 
 // app.listen(3000, () => {
 //     console.log("Server running on http://localhost:3000");
@@ -368,6 +369,7 @@ const updateMatchedTasksInZohoProjects = async (projectData, accessToken, projec
 
 const handleCreateAndUpdate = async (task, accessToken, projectId) => {
     try {
+        console.log("sending create request🔉🔉🔉")
         // Create the task
         const createPayload = {
             name: task.name, // Use the actual task name instead of hardcoded value
